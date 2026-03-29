@@ -1,4 +1,4 @@
-#Shield: Phishing and Smishing Detection
+# Shield: Phishing and Smishing Detection
 
 ## 📋 Overview
 
