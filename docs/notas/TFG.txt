@@ -1,0 +1,13 @@
+Text Mining = buscar patrones y conocimiento en grandes colecciones de texto.
+
+NLP = las técnicas que permiten a la máquina entender ese texto.
+
+
+
+Tema 1
+Detección de correos de phishing mediante análisis de texto
+
+Entrenar modelos de NLP para detectar phishing a partir de correos electrónicos (contenido textual + metadatos).
+
+Se alinea con el perfil de tu tutora (text mining + IA).
+

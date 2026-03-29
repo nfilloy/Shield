@@ -1,0 +1,518 @@
+================================================================================
+     DOCUMENTACION COMPLETA DEL TFG: Sistema de Deteccion de Phishing y Smishing
+================================================================================
+mdelo tfg tipo 1
+
+
+todo el tema de usuraios - gestion-
+
+
+================================================================================
+1. VISION GENERAL
+================================================================================
+
+1.1 Que es este proyecto?
+-------------------------
+Un sistema de deteccion de amenazas que identifica:
+- Smishing: Phishing a traves de SMS (mensajes de texto fraudulentos)
+- Phishing: Correos electronicos fraudulentos
+
+El sistema utiliza Machine Learning y Procesamiento de Lenguaje Natural (NLP)
+para clasificar mensajes como legitimos o maliciosos.
+
+
+1.2 Componentes principales
+---------------------------
+
++---------------------------------------------------------------------+
+|                    ARQUITECTURA DEL SISTEMA                         |
++---------------------------------------------------------------------+
+|                                                                     |
+|  +----------+    +--------------+    +-------------+                |
+|  | DATASETS |--->| PREPROCESADO |--->| EXTRACCION  |                |
+|  | (Origen) |    |   DE TEXTO   |    | DE FEATURES |                |
+|  +----------+    +--------------+    +------+------+                |
+|                                             |                       |
+|                                             v                       |
+|  +----------+    +--------------+    +-------------+                |
+|  | INTERFAZ |<---| PREDICCION   |<---| MODELOS ML  |                |
+|  | STREAMLIT|    |              |    | (5 tipos)   |                |
+|  +----------+    +--------------+    +-------------+                |
+|       |                                                             |
+|       v                                                             |
+|  +-------------------------------------+                            |
+|  | EXPLICABILIDAD (XAI): SHAP + LIME   |                            |
+|  +-------------------------------------+                            |
+|                                                                     |
++---------------------------------------------------------------------+
+
+
+================================================================================
+2. DATASETS UTILIZADOS
+================================================================================
+
+2.1 SMS (Smishing)
+------------------
+
++------------------------+--------------------------------------------------+----------------+
+| Dataset                | Fuente                                           | Tamano         |
++------------------------+--------------------------------------------------+----------------+
+| Mendeley SMS Phishing  | https://data.mendeley.com/datasets/f45bkkt8pr/1  | 5,971 mensajes |
+| UCI SMS Spam           | HuggingFace (ucirvine/sms_spam)                  | 5,574 mensajes |
++------------------------+--------------------------------------------------+----------------+
+
+Ubicacion Mendeley: data/external/SMS PHISHING DATASET FOR MACHINE LEARNING AND PATTERN RECOGNITION/Dataset_5971.csv
+
+Distribucion del dataset Mendeley:
+- 4,844 ham (legitimos)
+- 638 smishing (phishing real)
+- 489 spam generico -> EXCLUIDO (no es phishing)
+
+Dataset combinado final: 5,960 mensajes unicos
+- 919 smishing (15.4%)
+- 5,041 legitimos (84.6%)
+
+NOTA IMPORTANTE:
+- Mendeley: Contiene SMISHING REAL (phishing por SMS)
+- UCI SMS Spam: Contiene SPAM generico (publicidad), NO es phishing
+
+
+2.2 Email (Phishing)
+--------------------
+
++-------------+---------------------------------+----------------+
+| Dataset     | Fuente                          | Tamano         |
++-------------+---------------------------------+----------------+
+| Enron Spam  | HuggingFace (SetFit/enron_spam) | 33,000+ emails |
++-------------+---------------------------------+----------------+
+
+NOTA IMPORTANTE:
+- El dataset Enron es SPAM corporativo, NO phishing real
+- Proviene del escandalo Enron de los anos 2000
+
+
+2.3 Diferencia entre SPAM y PHISHING
+------------------------------------
+
++----------------+----------------------------------+------------------------------------------+
+| Caracteristica | SPAM                             | PHISHING                                 |
++----------------+----------------------------------+------------------------------------------+
+| Objetivo       | Publicidad, vender productos     | Robar credenciales, datos bancarios      |
+| Peligro        | Molestia                         | Fraude financiero, robo de identidad     |
+| Ejemplo        | "50% descuento en productos"     | "Tu cuenta sera suspendida, verifica"    |
++----------------+----------------------------------+------------------------------------------+
+
+
+================================================================================
+3. PIPELINE DE PROCESAMIENTO
+================================================================================
+
+3.1 Preprocesamiento de texto (src/data/preprocessor.py)
+--------------------------------------------------------
+
+El texto pasa por estas transformaciones:
+
+    preprocessor = TextPreprocessor(
+        lowercase=True,           # Convertir a minusculas
+        remove_html=True,         # Eliminar etiquetas HTML
+        replace_urls=True,        # URLs -> "<URL>"
+        replace_emails=True,      # emails -> "<EMAIL>"
+        replace_numbers=True,     # numeros -> "<NUM>"
+        remove_extra_whitespace=True
+    )
+
+Ejemplo de transformacion:
+    ENTRADA: "URGENTE! Tu cuenta sera bloqueada. Verifica en http://fake-bank.xyz"
+    SALIDA:  "urgente tu cuenta sera bloqueada verifica en <URL>"
+
+
+3.2 Extraccion de caracteristicas
+---------------------------------
+
+El sistema combina DOS tipos de features:
+
+A) TF-IDF (Term Frequency - Inverse Document Frequency)
+   - Word n-grams: (1,3) -> unigrams, bigrams, trigrams
+   - Char n-grams: (2,5) -> captura patrones ortograficos
+   - max_features: 5,000 por tipo
+   - Total TF-IDF: ~10,000 features
+
+B) Features estructurales/URL (src/features/sms_features.py)
+
++------------+-----------------------------------------------------------------------------+
+| Categoria  | Features extraidas                                                          |
++------------+-----------------------------------------------------------------------------+
+| URLs       | url_count, has_url, shortened_url_count, suspicious_tld_count, ip_url_count |
+| Keywords   | urgency_count, promo_count, financial_count, action_count                   |
+| Caracteres | uppercase_ratio, digit_ratio, special_char_ratio, emoji_count               |
+| Patrones   | has_verification_code, has_tracking_number, impersonation_indicator         |
++------------+-----------------------------------------------------------------------------+
+
+Total features combinadas: ~10,044 (TF-IDF + 44 estructurales)
+
+
+3.3 Deteccion de URLs sospechosas
+---------------------------------
+
+El sistema detecta:
+
+# Acortadores de URLs (alto riesgo)
+URL_SHORTENERS = ['bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'snip.ly',
+                  'ow.ly', 'is.gd', 'buff.ly', 'adf.ly', 'cutt.ly', ...]
+
+# TLDs sospechosos
+SUSPICIOUS_TLDS = ['.xyz', '.top', '.work', '.click', '.tk', '.ga',
+                   '.ml', '.cf', '.link', '.info', '.online', ...]
+
+# Keywords de urgencia
+URGENCY_KEYWORDS = ['urgent', 'immediate', 'expires', 'act fast',
+                    'limited', 'final notice', 'deadline', ...]
+
+# Keywords financieros
+FINANCIAL_KEYWORDS = ['bank', 'account', 'password', 'verify', 'suspend',
+                      'security', 'unauthorized', 'fraud', ...]
+
+
+================================================================================
+4. MODELOS DE MACHINE LEARNING
+================================================================================
+
+4.1 Modelos implementados (src/models/classical.py)
+---------------------------------------------------
+
++---------------------+---------------------------------------+-------------------------------------+
+| Modelo              | Descripcion                           | Ventajas                            |
++---------------------+---------------------------------------+-------------------------------------+
+| Naive Bayes         | Clasificador probabilistico Bayesiano | Rapido, funciona bien con texto     |
+| Logistic Regression | Modelo lineal con regularizacion      | Interpretable, robusto              |
+| Random Forest       | Ensemble de arboles de decision       | Captura no-linealidades             |
+| Linear SVM          | Support Vector Machine lineal         | Excelente para alta dimensionalidad |
+| XGBoost             | Gradient Boosting optimizado          | Alto rendimiento, maneja desbalance |
++---------------------+---------------------------------------+-------------------------------------+
+
+
+4.2 Resultados del entrenamiento (SMS)
+--------------------------------------
+
++---------------------+----------+----------+
+| Modelo              | F1 Score | Accuracy |
++---------------------+----------+----------+
+| Naive Bayes         | 96.48%   | 98.91%   |
+| XGBoost             | 96.38%   | 98.91%   |
+| Linear SVM          | 95.84%   | 98.74%   |
+| Random Forest       | 94.62%   | 98.41%   |
+| Logistic Regression | 94.62%   | 98.32%   |
++---------------------+----------+----------+
+
+Mejor modelo: Naive Bayes con F1 Score de 96.48%
+
+
+4.3 Manejo del desbalance de clases
+-----------------------------------
+
+El dataset esta desbalanceado (15% smishing vs 85% legitimo).
+
+Tecnicas usadas:
+
+    # 1. class_weight='balanced' en sklearn
+    LogisticRegression(class_weight='balanced')
+    RandomForestClassifier(class_weight='balanced')
+
+    # 2. scale_pos_weight en XGBoost
+    scale_pos_weight = n_negativos / n_positivos  # aproximadamente 5.49
+    XGBClassifier(scale_pos_weight=5.49)
+
+
+================================================================================
+5. FLUJO DE ENTRENAMIENTO
+================================================================================
+
+5.1 Pipeline unificado (src/training/pipeline.py)
+-------------------------------------------------
+
+    from src.training.pipeline import TrainingPipeline
+
+    pipeline = TrainingPipeline()
+    results = pipeline.run(data_type='sms')  # o 'email'
+
+Pasos del pipeline:
+
+    1. Cargar datos     -> SMSLoader.load_combined_smishing()66
+    2. Preprocesar      -> TextPreprocessor.preprocess()107-111
+    3. Dividir          -> train_test_split(test_size=0.2, stratify=y)247-249
+    4. Extraer features -> TF-IDF + URL features173-202
+    5. Entrenar modelos -> 5 algoritmos291-315
+    6. Evaluar          -> F1 Score, Accuracy321-324
+    7. Guardar          -> models/*.pkl318
+
+
+5.2 Archivos generados
+----------------------
+
+    models/
+    |-- naive_bayes.pkl              # Modelo entrenado
+    |-- logistic_regression.pkl
+    |-- random_forest.pkl
+    |-- linear_svm.pkl
+    |-- xgboost.pkl
+    |-- tfidf_vectorizer.pkl         # Vectorizador TF-IDF
+    +-- url_features_config.pkl      # Config de features URL
+
+
+================================================================================
+6. APLICACION WEB (STREAMLIT)
+================================================================================
+
+6.1 Interfaz (app/streamlit_app.py)
+-----------------------------------
+
+Caracteristicas:
+- Diseno "cyber-noir terminal" con estetica futurista
+- Selector SMS/Email
+- Analisis individual o comparacion de todos los modelos
+- Visualizacion de probabilidades
+- Analisis batch (CSV)
+- Explicabilidad XAI integrada
+
+
+6.2 Flujo de prediccion
+-----------------------
+
+    class PhishingDetector:
+        def predict(self, text, model_name, text_type='sms'):
+            # 1. Preprocesar texto
+            clean_text = self.preprocessor.preprocess(text)
+
+            # 2. Extraer features del texto ORIGINAL (SMS o Email)
+            if text_type == 'sms':
+                features = self.sms_feature_extractor.extract_all_features(text)
+                vec_key, char_key, svd_key, url_config_key = 'tfidf', 'char', 'svd', 'sms'
+            else:
+                features = self.email_feature_extractor.extract_all_features({
+                    'body': text, 'subject': '', 'headers': {}
+                })
+                vec_key, char_key, svd_key, url_config_key = 'email_tfidf', 'email_char', None, 'email'
+
+            # 3. Ajustar nombre de modelo para email
+            if text_type == 'email' and not model_name.startswith('email_'):
+                model_name = f'email_{model_name}'
+
+            # 4. Fallback si faltan modelos/vectorizadores
+            if model_name not in self.models or vec_key not in self.vectorizers:
+                return self._rule_based_detection(text, features, text_type)
+
+            # 5. Vectorizar texto preprocesado (word + char + SVD opcional)
+            X_word = self.vectorizers[vec_key].transform([clean_text])
+            X_char = self.vectorizers[char_key].transform([clean_text]) if self.vectorizers.get(char_key) is not None else None
+            X_tfidf = sparse_hstack([X_word, X_char]) if X_char is not None else X_word
+            if svd_key and self.vectorizers.get(svd_key) is not None:
+                X_tfidf = self.vectorizers[svd_key].transform(X_tfidf)
+            if hasattr(X_tfidf, 'toarray'):
+                X_tfidf = X_tfidf.toarray()
+
+            # 6. Combinar con URL/configuracion guardada
+            if url_config_key in self.url_configs:
+                feature_names = self.url_configs[url_config_key]['feature_names']
+                X_url = np.array([[features.get(name, 0) for name in feature_names]])
+                X = np.hstack([X_tfidf, X_url])
+            else:
+                X = X_tfidf
+
+            # 7. Validar dimensionalidad y predecir
+            model = self.models[model_name]
+            expected_features = getattr(model, 'n_features_in_', None)
+            if expected_features is not None and X.shape[1] != expected_features:
+                return self._rule_based_detection(text, features, text_type)
+
+            prediction = model.predict(X)[0]
+            probability = model.predict_proba(X)[0]
+
+            return {
+                'prediction': int(prediction),      # 0 = legitimo, 1 = phishing
+                'probability': float(probability[1]) * 100,   # % de ser phishing
+                'confidence': max(probability) * 100,
+                'features': features,
+                'clean_text': clean_text,
+                'model_used': model_name
+            }
+
+
+================================================================================
+7. EXPLICABILIDAD (XAI)
+================================================================================
+
+7.1 Por que XAI?
+----------------
+
+La explicabilidad permite entender POR QUE el modelo toma una decision,
+no solo QUE decision toma. Esto es crucial para:
+- Validar que el modelo aprende patrones correctos
+- Generar confianza en el usuario
+- Cumplir con requisitos de transparencia
+
+
+7.2 Tecnicas implementadas
+--------------------------
+
+SHAP (SHapley Additive exPlanations)
+- Basado en valores de Shapley de teoria de juegos
+- Muestra la contribucion de cada feature a la prediccion
+- TreeExplainer para XGBoost/Random Forest
+- LinearExplainer para Logistic Regression
+
+LIME (Local Interpretable Model-agnostic Explanations)
+- Crea un modelo lineal local alrededor de la prediccion
+- Funciona con cualquier modelo (model-agnostic)
+- Resalta palabras que contribuyen a la clasificacion
+
+
+7.3 Ejemplo de salida SHAP
+--------------------------
+
+Texto: "URGENTE: Tu cuenta sera suspendida. Verifica: bit.ly/xyz"
+
+Features mas importantes:
++--------------------+--------------+-----------------------------------+
+| Feature            | SHAP Value   | Interpretacion                    |
++--------------------+--------------+-----------------------------------+
+| has_shortened_url  | +0.45        | URL acortada aumenta riesgo       |
+| urgency_count      | +0.32        | Palabras de urgencia              |
+| "verifica"         | +0.28        | Keyword de accion                 |
+| "cuenta"           | +0.15        | Contexto financiero               |
++--------------------+--------------+-----------------------------------+
+
+
+================================================================================
+8. ESTRUCTURA DE ARCHIVOS
+================================================================================
+
+TFG/
+|-- app/
+|   |-- streamlit_app.py          # Interfaz web principal
+|   +-- components/
+|       +-- xai_display.py        # Visualizacion XAI
+|
+|-- src/
+|   |-- data/
+|   |   |-- sms_loader.py         # Carga datasets SMS
+|   |   |-- email_loader.py       # Carga datasets Email
+|   |   +-- preprocessor.py       # Preprocesamiento de texto
+|   |
+|   |-- features/
+|   |   |-- text_features.py      # TF-IDF extractor
+|   |   |-- sms_features.py       # Features especificas SMS
+|   |   +-- email_features.py     # Features especificas Email
+|   |
+|   |-- models/
+|   |   +-- classical.py          # Wrapper de modelos ML
+|   |
+|   |-- training/
+|   |   +-- pipeline.py           # Pipeline de entrenamiento
+|   |
+|   |-- explainability/
+|   |   |-- base.py               # Clase base
+|   |   |-- shap_explainer.py     # Explicador SHAP
+|   |   |-- lime_explainer.py     # Explicador LIME
+|   |   +-- text_highlighter.py   # Resaltado de texto
+|   |
+|   +-- main.py                   # CLI principal
+|
+|-- models/                        # Modelos entrenados (.pkl)
+|-- data/external/                 # Datasets descargados
+|-- scripts/                       # Scripts de entrenamiento
++-- CLAUDE.md                      # Documentacion del proyecto
+
+
+================================================================================
+9. COMANDOS PRINCIPALES
+================================================================================
+
+# Activar entorno virtual
+.\.venv\Scripts\Activate.ps1
+
+# Ejecutar aplicacion web
+streamlit run app/streamlit_app.py
+
+# Entrenar modelos SMS
+python scripts/train_sms_models.py
+
+# Entrenar modelos Email
+python scripts/train_email_models.py
+
+# CLI - Entrenar
+python -m src.main train --type sms
+python -m src.main train --type email
+
+# CLI - Predecir
+python -m src.main predict "Mensaje sospechoso" --type sms
+python -m src.main predict "Email sospechoso" --type email
+
+
+================================================================================
+10. TECNOLOGIAS UTILIZADAS
+================================================================================
+
++----------------+--------------------------------+
+| Categoria      | Tecnologia                     |
++----------------+--------------------------------+
+| Lenguaje       | Python 3.13                    |
+| ML Framework   | Scikit-learn, XGBoost          |
+| NLP            | TF-IDF, spaCy, NLTK            |
+| Explicabilidad | SHAP, LIME                     |
+| Interfaz Web   | Streamlit                      |
+| Datos          | Pandas, NumPy                  |
+| Datasets       | HuggingFace Datasets, Mendeley |
++----------------+--------------------------------+
+
+
+================================================================================
+11. PUNTOS CLAVE PARA EL TUTOR
+================================================================================
+
+1. PROBLEMA REAL
+   Smishing y phishing son amenazas crecientes en ciberseguridad
+
+2. DATASETS REALES
+   Se usa smishing real de Mendeley, no solo spam generico
+   (Aunque el dataset de email es spam, no phishing)
+
+3. FEATURE ENGINEERING
+   Combinacion innovadora de TF-IDF + features estructurales (URLs)
+
+4. MULTIPLES MODELOS
+   5 algoritmos comparados objetivamente con metricas estandar
+
+5. EXPLICABILIDAD (XAI)
+   Implementacion de SHAP y LIME para transparencia en las decisiones
+
+6. APLICACION PRACTICA
+   Interfaz web funcional con Streamlit
+
+7. CODIGO MODULAR
+   Arquitectura limpia con separacion de responsabilidades
+
+
+================================================================================
+12. LIMITACIONES ACTUALES
+================================================================================
+
+1. Dataset de Email no es phishing real (es spam del corpus Enron)
+2. Dataset de SMS combina smishing real + spam generico
+3. Los modelos estan entrenados principalmente en ingles
+4. No hay actualizacion automatica de datasets
+
+
+================================================================================
+13. POSIBLES MEJORAS FUTURAS
+================================================================================
+
+1. Buscar datasets de phishing real para emails
+2. Implementar modelos de Deep Learning (BERT, transformers)
+3. Anadir soporte para espanol
+4. Implementar deteccion en tiempo real
+5. Anadir mas tecnicas de explicabilidad
+
+
+================================================================================
+                              FIN DEL DOCUMENTO
+================================================================================

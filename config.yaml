@@ -1,0 +1,267 @@
+# Configuration file for Phishing & Smishing Detection System
+# TFG - NLP and Machine Learning
+
+# =============================================================================
+# GENERAL SETTINGS
+# =============================================================================
+project:
+  name: "Phishing & Smishing Detection"
+  version: "1.0.0"
+  random_seed: 42
+  log_level: "INFO"
+
+# =============================================================================
+# DATA PATHS
+# =============================================================================
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  external_dir: "data/external"
+
+  # Email datasets
+  email:
+    raw_dir: "data/raw/email"
+    processed_file: "data/processed/emails_processed.csv"
+
+  # SMS datasets
+  sms:
+    raw_dir: "data/raw/sms"
+    processed_file: "data/processed/sms_processed.csv"
+    uci_dataset: "data/external/SMSSpamCollection"
+
+# =============================================================================
+# PREPROCESSING SETTINGS
+# =============================================================================
+preprocessing:
+  # Text preprocessing
+  text:
+    lowercase: true
+    remove_html: true
+    remove_urls: false
+    replace_urls: true
+    remove_emails: false
+    replace_emails: true
+    remove_numbers: false
+    replace_numbers: true
+    remove_punctuation: false
+    remove_extra_whitespace: true
+    remove_stopwords: false
+    lemmatize: false
+    min_word_length: 2
+    max_word_length: 50
+
+  # For classical ML models
+  classical_ml:
+    lowercase: true
+    remove_stopwords: true
+    lemmatize: true
+    remove_punctuation: true
+
+  # For deep learning models
+  deep_learning:
+    lowercase: true
+    remove_stopwords: false
+    lemmatize: false
+    remove_punctuation: false
+
+  # For transformer models (minimal preprocessing)
+  transformers:
+    lowercase: false
+    remove_stopwords: false
+    lemmatize: false
+    remove_punctuation: false
+
+# =============================================================================
+# FEATURE EXTRACTION SETTINGS
+# =============================================================================
+features:
+  # TF-IDF settings
+  tfidf:
+    max_features: 10000
+    ngram_range: [1, 2]  # Unigrams and bigrams
+    min_df: 2
+    max_df: 0.95
+    sublinear_tf: true
+
+  # Character n-grams
+  char_ngrams:
+    enabled: true
+    ngram_range: [2, 5]
+    max_features: 5000
+
+  # Word embeddings
+  embeddings:
+    type: "word2vec"  # word2vec, fasttext
+    dim: 300
+    pretrained: null  # Path to pretrained embeddings
+    train_own: true
+
+  # SVD/LSA dimensionality reduction
+  svd:
+    enabled: false
+    n_components: 300
+
+# =============================================================================
+# MODEL CONFIGURATIONS
+# =============================================================================
+models:
+  # Train/test split
+  split:
+    test_size: 0.2
+    validation_size: 0.15
+    stratify: true
+
+  # Cross-validation
+  cross_validation:
+    n_folds: 5
+    shuffle: true
+
+  # Classical ML models
+  classical:
+    naive_bayes:
+      alpha: 1.0
+      fit_prior: true
+
+    logistic_regression:
+      C: 1.0
+      max_iter: 1000
+      class_weight: "balanced"
+
+    svm:
+      C: 1.0
+      kernel: "linear"
+      class_weight: "balanced"
+
+    random_forest:
+      n_estimators: 100
+      max_depth: null
+      class_weight: "balanced"
+      n_jobs: -1
+
+    xgboost:
+      n_estimators: 100
+      learning_rate: 0.1
+      max_depth: 6
+
+  # Deep learning models
+  deep_learning:
+    common:
+      embedding_dim: 128
+      dropout: 0.3
+      batch_size: 32
+      epochs: 10
+      learning_rate: 0.001
+      early_stopping_patience: 3
+
+    lstm:
+      hidden_dim: 256
+      num_layers: 2
+      bidirectional: false
+
+    bilstm:
+      hidden_dim: 256
+      num_layers: 2
+      bidirectional: true
+
+    cnn:
+      num_filters: 128
+      filter_sizes: [2, 3, 4, 5]
+
+    bilstm_attention:
+      hidden_dim: 256
+      num_layers: 2
+
+  # Transformer models
+  transformers:
+    common:
+      max_length: 256
+      batch_size: 16
+      epochs: 3
+      learning_rate: 2.0e-5
+      warmup_steps: 500
+      weight_decay: 0.01
+      early_stopping_patience: 3
+
+    bert:
+      model_name: "bert-base-uncased"
+
+    distilbert:
+      model_name: "distilbert-base-uncased"
+
+    roberta:
+      model_name: "roberta-base"
+
+# =============================================================================
+# EVALUATION SETTINGS
+# =============================================================================
+evaluation:
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1
+    - roc_auc
+    - pr_auc
+
+  # Threshold optimization
+  optimize_threshold: true
+  threshold_metric: "f1"
+  min_recall: 0.9  # Ensure high recall for phishing detection
+
+# =============================================================================
+# OUTPUT SETTINGS
+# =============================================================================
+output:
+  models_dir: "models"
+  reports_dir: "reports"
+  figures_dir: "reports/figures"
+  results_dir: "reports/results"
+
+  # Save options
+  save_models: true
+  save_predictions: true
+  save_feature_importance: true
+
+# =============================================================================
+# STREAMLIT APP SETTINGS
+# =============================================================================
+app:
+  title: "Phishing & Smishing Detector"
+  default_model: "random_forest"
+  show_explanations: true
+  max_text_length: 10000
+
+  # Theme colors
+  theme:
+    primary_color: "#2E86AB"
+    background_color: "#FFFFFF"
+    secondary_background: "#F0F2F6"
+
+# =============================================================================
+# EXPERIMENT TRACKING
+# =============================================================================
+experiments:
+  # Models to train and compare
+  models_to_train:
+    classical:
+      - naive_bayes
+      - logistic_regression
+      - svm
+      - random_forest
+      - xgboost
+
+    deep_learning:
+      - lstm
+      - bilstm
+      - cnn
+      - bilstm_attention
+
+    transformers:
+      - distilbert
+      - bert
+
+  # Hyperparameter tuning
+  hyperparameter_tuning:
+    enabled: true
+    method: "grid_search"  # grid_search, random_search
+    cv_folds: 5

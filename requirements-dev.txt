@@ -1,0 +1,11 @@
+# TFG: Dependencias de Desarrollo
+# Instalar con: pip install -r requirements-dev.txt
+
+# Herramientas de formato y linting
+black>=23.9.0
+flake8>=6.1.0
+isort>=5.12.0
+
+# Testing (también en requirements.txt para CI/CD)
+pytest>=7.4.0
+pytest-cov>=4.1.0

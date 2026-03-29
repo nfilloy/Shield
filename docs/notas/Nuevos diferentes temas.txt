@@ -1,0 +1,80 @@
+1 - App de control de gastos con gráficas (Backend sólido + dashboards)
+
+
+
+
+
+
+Los que más me gustan son el 3 y el 8
+///////////////////////DE CIBERSEGURIDAD\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+Sistema de Gestión de Dispositivos Perdidos o Robados (Anti-robo digital)
+
+💡 Idea original y útil:
+Una web donde los usuarios registran sus dispositivos (móvil, portátil, tablet) y, si se pierden, pueden:
+
+marcar el dispositivo como “perdido”
+
+ver sus últimos datos guardados
+
+bloquearlo remotamente (simulado)
+
+activar una “alarma” digital
+
+mandar un mensaje al dispositivo (simulado)
+
+🎯 Seguridad → Protección ante pérdida/robo
+No necesitas saber hacking ni ataques.
+
+⭐ Dificultad: MEDIA
+⭐ Originalidad: ALTA
+⭐ No existe así como TFG de estudiantes.
+
+-----------------------------------------------------------------------------------------------------------
+
+3Sistema de Autenticación Universal O2O (One-Time-Only)
+
+💡 Idea distinta:
+Crea un sistema de login donde:
+
+cada inicio de sesión genera una contraseña temporal única
+
+esa contraseña solo funciona 1 vez
+
+puedes usar QR para login seguro
+
+el backend gestiona todos los códigos y la caducidad
+
+No es enseñar nada, es crear un sistema de login avanzado, muy útil e innovador.
+
+🎯 Ciberseguridad → Autenticación
+🎯 No necesitas datasets ni IA.
+
+⭐ Dificultad: MEDIA/ALTA
+⭐ Muy profesional
+
+
+---------------------------------------------------------------------------------------------------------
+
+8Sistema de Gestión de Copias de Seguridad con Restauración
+
+💡 Una plataforma donde el usuario puede:
+
+subir archivos importantes
+
+generar backups automáticos
+
+restaurar versiones antiguas
+
+tener histórico de cambios
+
+ver detalles de seguridad
+
+🎯 Seguridad → integridad de datos
+🎯 No es educativo
+🎯 No requiere análisis complejo
+
+⭐ Dificultad: MEDIA/Baja
+⭐ Muy útil
+
+
