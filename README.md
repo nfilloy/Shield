@@ -1,49 +1,41 @@
-# Shield
+# Shield: Phishing and Smishing Detection
 
-Phishing and smishing detection system based on NLP and machine learning models.
+## 📋 Overview
 
-## Project Contents
+**Phishing (emails) and smishing (SMS) detection** system using NLP and Machine Learning.
+Includes a **user management system** with authentication, analysis history, and an administration dashboard.
+Bachelor's Thesis (Trabajo de Fin de Grado - TFG) project.
 
-- `app/`: Streamlit interface and application pages.
-- `src/`: core logic (data, features, models, evaluation, and explainability).
-- `scripts/`: training and validation scripts.
-- `tests/`: unit tests.
-- `data/`: project datasets.
-- `models/`: trained models and artifacts.
-- `reports/`: results and evaluation outputs.
+---
 
-## Requirements
+## 🚀 Quick Commands
 
-- Python 3.10 or higher
-- pip
+```powershell
+# Activate virtual environment
+.\.venv\Scripts\Activate.ps1
 
-## Installation
-
-```bash
-python -m venv .venv
-.venv\\Scripts\\activate
-pip install -r requirements.txt
-```
-
-## Running the App
-
-```bash
+# Run main web application
 streamlit run app/streamlit_app.py
-```
 
-## Training
+# Run additional pages
+streamlit run app/pages/history.py          # User's analysis history
+streamlit run app/pages/admin_dashboard.py  # Admin dashboard
 
-```bash
+# Train SMS models (via wrapper)
 python scripts/train_sms_models.py
+
+# Train Email models (via wrapper)
 python scripts/train_email_models.py
-```
 
-## Tests
+# Run from command line (unified CLI)
+python -m src.main train --type sms
+python -m src.main train --type email
+python -m src.main predict "Suspicious message here" --type sms
+python -m src.main predict "Suspicious email here" --type email
+python -m src.main app
 
-```bash
-pytest
-```
+# Initialize database
+python -c "from src.database import init_db; init_db()"
 
-## Note
-
-This repository (`Shield`) is the clean and stable version of the project, separate from the testing repository (`TFG`).
+# Create admin user
+python -c "from src.auth import register_user; register_user('admin', 'admin@shield.io', 'AdminPass123', role='admin')"
